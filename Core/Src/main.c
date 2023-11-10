@@ -57,7 +57,17 @@ static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
 #define PRINT_INFO(pBuffer) GNSS_PRINT(pBuffer)
 static uint8_t gnssCmd[90];
-static uint8_t xbuffer[400];
+char gpsBuffer[256]; // Buffer to store received GPS data
+
+
+char time[7];
+char latitude[10];
+char longitude[11];
+char fix[2];
+char satellites[3];
+char hdop[4];
+char altitude[7];
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -91,6 +101,23 @@ void GNSS_DATA_SendCommand(uint8_t *pCommand)
     while(status != 0);
   }
 }
+
+void GPS_ParseGPGGA(const char* data, char* time, char* latitude, char* longitude,
+                    char* fix, char* satellites, char* hdop, char* altitude) {
+    // Example GPGGA data: "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47"
+    char* gpgga = strstr(data, "$GPGGA");
+
+    if (gpgga != NULL) {
+        // Extract GPGGA sentence
+        // Implement a more sophisticated parser based on your data format
+        // For simplicity, this example extracts the time, latitude, longitude,
+        // fix status, number of satellites, HDOP, and altitude
+
+        sscanf(gpgga, "$GPGGA,%6s,%9s,%c,%10s,%c,%1s,%2s,%3s,%6s", time, latitude,
+               &latitude[9], longitude, &longitude[10], fix, satellites, hdop, altitude);
+    }
+}
+
 
 /* USER CODE END 0 */
 
@@ -147,7 +174,7 @@ int main(void)
                    lowMask,
                    highMask);
 
-  GNSS_DATA_SendCommand(gnssCmd);
+
 
   /* USER CODE END 2 */
 
@@ -155,10 +182,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  GNSS_DATA_SendCommand(gnssCmd);
+	  HAL_Delay(500);
 
-	  HAL_UART_Receive(&huart4, (uint8_t*)xbuffer, (uint16_t)strlen((char *)xbuffer), 1000);
+	  HAL_UART_Receive(&huart4, (uint8_t*)gpsBuffer, (uint16_t)strlen((char *)gpsBuffer), 1000);
+	  gpsBuffer[sizeof(gpsBuffer) - 1] = '\0';  // Ensure null-terminated string
 
-	  HAL_Delay(5000);
+	  GPS_ParseGPGGA(gpsBuffer, time, latitude, longitude, fix, satellites, hdop, altitude);
+
+		// Print the parsed data
+//	  printf("Time: %s, Latitude: %s, Longitude: %s, Fix: %s, Satellites: %s, HDOP: %s, Altitude: %s\n",
+//			   time, latitude, longitude, fix, satellites, hdop, altitude);
+
+		// Wait for a longer duration before sending the next set of commands
+	   HAL_Delay(5000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
